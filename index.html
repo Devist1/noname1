@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, shrink-to-fit=no">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <title>Love Promise</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        html, body {
+            width: 100%;
+            height: 100%;
+            background: #000;
+            overflow: hidden;
+            -webkit-overflow-scrolling: touch;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        video {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <video
+        id="myVideo"
+        src="lovepromise.mp4"
+        preload="auto"
+        autoplay
+        muted
+        playsinline
+        webkit-playsinline
+        x5-video-player-type="h5-page"
+        x5-video-player-fullscreen="true"
+        x5-video-orientation="portraint"
+        x5-video-show-fullscreen-btn="false"
+        x5-video-played-autoplay="true"
+        loop
+    ></video>
+
+    <script>
+        (function() {
+            var video = document.getElementById('myVideo');
+
+            // 强制 muted 属性 + 属性值（iOS Safari 需要同时设置）
+            video.muted = true;
+            video.playsInline = true;
+            video.autoplay = true;
+            video.setAttribute('muted', '');
+            video.setAttribute('playsinline', '');
+            video.setAttribute('webkit-playsinline', '');
+
+            function tryPlay() {
+                if (video.paused) {
+                    var playPromise = video.play();
+                    if (playPromise !== undefined) {
+                        playPromise.then(function() {
+                            console.log('[AutoPlay] 播放成功');
+                        }).catch(function(err) {
+                            console.log('[AutoPlay] 播放失败: ' + err.name);
+                        });
+                    }
+                }
+            }
+
+            // 多次尝试播放
+            function schedulePlayAttempts() {
+                tryPlay();
+                setTimeout(tryPlay, 100);
+                setTimeout(tryPlay, 300);
+                setTimeout(tryPlay, 500);
+                setTimeout(tryPlay, 1000);
+                setTimeout(tryPlay, 2000);
+            }
+
+            // video 数据就绪时尝试播放
+            video.addEventListener('canplay', function() {
+                tryPlay();
+            });
+            video.addEventListener('canplaythrough', function() {
+                tryPlay();
+            });
+            video.addEventListener('loadeddata', function() {
+                tryPlay();
+            });
+            video.addEventListener('loadedmetadata', function() {
+                tryPlay();
+            });
+
+            // 强制加载视频
+            video.load();
+
+            // DOMContentLoaded
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', schedulePlayAttempts);
+            } else {
+                schedulePlayAttempts();
+            }
+
+            // window load
+            window.addEventListener('load', schedulePlayAttempts);
+
+            // visibilitychange
+            document.addEventListener('visibilitychange', function() {
+                if (!document.hidden) {
+                    tryPlay();
+                }
+            });
+
+            // 各平台 JSBridge 就绪
+            document.addEventListener('WeixinJSBridgeReady', function() {
+                tryPlay();
+            }, false);
+            document.addEventListener('onLoad', function() {
+                tryPlay();
+            }, false);
+            document.addEventListener('DOMContentLoadedEvent', function() {
+                tryPlay();
+            }, false);
+
+            // 兜底：首次用户交互时播放（触摸/点击）
+            var interactionEvents = ['touchstart', 'touchend', 'click', 'scroll', 'orientationchange'];
+            var interacted = false;
+            function onInteraction() {
+                if (!interacted) {
+                    interacted = true;
+                    tryPlay();
+                    // 触发后不必立即注销，保留以应对后续暂停的情况
+                }
+                tryPlay();
+            }
+            for (var i = 0; i < interactionEvents.length; i++) {
+                document.addEventListener(interactionEvents[i], onInteraction, { passive: true });
+            }
+
+            // 页面完全展示时（针对部分安卓浏览器）
+            if (typeof window.onpageshow !== 'undefined') {
+                window.addEventListener('pageshow', function(e) {
+                    if (e.persisted) {
+                        tryPlay();
+                    }
+                });
+            }
+
+            // requestAnimationFrame 后尝试（确保渲染管道就绪）
+            if (typeof requestAnimationFrame !== 'undefined') {
+                requestAnimationFrame(function() {
+                    requestAnimationFrame(function() {
+                        tryPlay();
+                    });
+                });
+            }
+
+            // 防止视频被暂停（某些浏览器会在滚动时暂停）
+            video.addEventListener('pause', function() {
+                if (!video.ended && !interacted) {
+                    tryPlay();
+                }
+            });
+
+        })();
+    </script>
+</body>
+</html>
